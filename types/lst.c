@@ -31,6 +31,8 @@
  * Date: September, 2012
  */
 
+#include <stdlib.h> //for NULL
+
 #include "lst.h"
 
 lst* new_lst(int size) {
@@ -169,24 +171,6 @@ int swap_lst(lst* list, int loc1, int loc2) {
 int free_lst(lst* list) {
     free(list->elems);
     free(list);
-    
-    return 0;
-}
-
-int print_lst(lst* list, char* (*print_fn)(void*)) {
-    int i;
-    
-    if(list == NULL) { printf("%p\n", list); return -1; }
-    
-    printf("[");
-    for(i = 0; i < list->sz; i++) {
-        printf("%s", print_fn(list->elems[i]));
-        
-        if(i < list->sz - 1) {
-            printf(", ");
-        }
-    }
-    printf("]\n");
     
     return 0;
 }
