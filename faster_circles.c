@@ -1,10 +1,13 @@
 #include "SDL.h"
+
 #include <math.h>
+
+#include "types/particle.h"
+#include "types/circlist.h"
 
 #define SCR_W 500
 #define SCR_H 500
 #define SCR_BPP 32
-#define LIST_START_SIZE 30
 #define PARTICLE_START_SIZE 100
 #define SIZE_DECREASE 0.99
 #define PARTICLE_SIZE_THRESHOLD 2
@@ -13,254 +16,6 @@
 #define MAX_NEG_Y -5
 #define MAX_Y 5
 
-typedef struct {
-    double x_apparent;
-    double y_apparent;
-    SDL_Rect* rect;
-    double x_speed;
-    double y_speed;
-    double size;
-}particle_t;
-
-typedef struct {
-    int sz;
-    int cap;
-    void** elems;
-}lst;
-
-particle_t* new_particle(double x_apparent, double y_apparent, double x_speed, double y_speed, double size) {
-    particle_t* retval = NULL;
-    SDL_Rect* rect = NULL;
-    
-    retval = (particle_t*)malloc(sizeof(particle_t));
-    rect = (SDL_Rect*)malloc(sizeof(SDL_Rect));
-    if(retval == NULL || rect == NULL) { return NULL; }
-    
-    rect->x = flr(x_apparent);
-    rect->y = flr(y_apparent);
-    rect->w = flr(size);
-    rect->h = flr(size);
-    
-    retval->x_apparent = x_apparent;
-    retval->y_apparent = y_apparent;
-    retval->rect = rect;
-    retval->x_speed  = x_speed;
-    retval->y_speed = y_speed;
-    retval->size = size;
-    
-    return retval;
-}
-
-/*
- * LIST PROCESSESING CODE
- */
-lst* new_lst(int size) {
-    if(size <= 0) { return NULL; }
-    
-    lst* list = (lst*)malloc(sizeof(lst));
-    if(list == NULL) { return NULL; }
-    
-    list->cap = size;
-    list->sz = 0;
-    if((list->elems = malloc(size * sizeof(void*))) == NULL) {
-        return NULL;
-    }
-    else {
-        return list;
-    }
-}
-
-//loc is zero-based
-void* get_lst(lst* list, int loc) {
-    if(loc >= list->cap || loc < 0) { return NULL; }
-    else { return list->elems[loc]; }
-}
-
-//loc is zero-based
-int set_lst(lst* list, int loc, void* val) {
-    if(loc >= list->cap || loc < 0) { return -1; }
-    
-    list->elems[loc] = val;
-    
-    return 0;
-}
-
-//doubles the list (adds another layer for the heap)
-int expand_lst(lst* list) {
-    int i;
-    void** new_lst = (void**)malloc(list->cap * 2 * sizeof(void*));
-    
-    if(new_lst == NULL) { return -1; }
-    
-    for(i = 0; i < list->cap * 2; i++) {
-        if(i <= list->sz - 1) {
-            new_lst[i] = get_lst(list, i);
-        }
-        else {
-            new_lst[i] = 0;
-        }
-    }
-    
-    free(list->elems);
-    list->elems = new_lst;
-    list->cap *= 2;
-    
-    return 0;
-}
-
-//loc is zero-indexed
-int ins_lst(lst* list, void* item, int loc) {
-    int i;
-    
-    if(loc < 0 || item == NULL) { return -1; }
-    
-    //resize
-    if(list->sz == list->cap) {
-        expand_lst(list);
-    }
-    
-    //check to see if adding to the end
-    //(no need to move things around)
-    if(loc == list->sz) {
-        list->elems[list->sz] = item;
-    }
-    else {
-        for(i = list->sz - 1; i >= loc; i--) {
-            list->elems[i + 1] = list->elems[i];
-        }
-        
-        set_lst(list, loc, item);
-    }
-    
-    list->sz++;
-    return 0;
-}
-
-//add item to the end
-int push_lst(lst* list, void* item) {
-    return ins_lst(list, item, list->sz);
-}
-
-//loc is zero indexed
-int del_lst(lst* list, int loc) {
-    int i;
-    
-    if(list == NULL || loc < 0 || list->sz <= 0) { return -1; }
-    
-    //see if removing from the end
-    if(loc == list->sz - 1) {
-        list->elems[list->sz - 1] = NULL;
-    }
-    else {
-        for(i = loc; i < list->sz; i++) {
-            list->elems[i] = list->elems[i + 1];
-        }
-    }
-    
-    list->sz--;
-    return 0;
-}
-
-int pop_lst(lst* list) {
-    return del_lst(list, list->sz - 1);
-}
-
-int clear_lst(lst* list) {
-    while(list->sz > 0) {
-        if(pop_lst(list) < 0) { return -1; }
-    }
-    
-    return 0;
-}
-
-int swap_lst(lst* list, int loc1, int loc2) {
-    if(loc1 < 0 || loc2 < 0 || loc1 >= list->sz || loc2 >= list->sz) {
-        return -1;
-    }
-     
-    void* item1 = list->elems[loc1];
-    void* item2 = list->elems[loc2];
-    
-    list->elems[loc2] = item1;
-    list->elems[loc1] = item2;
-    
-    return 0;
-}
-
-int free_lst(lst* list) {
-    free(list->elems);
-    free(list);
-    
-    return 0;
-}
-
-int cleanup_nulls(lst* list) {
-    int i, j;
-    int elem_count = 0; //non-null values
-    int new_cap = 0;
-    void** new_elems;
-    
-    for(i = 0; i < list->sz; i++) {
-        if(list->elems[i] != NULL) { elem_count++; }
-    }
-    
-    new_cap = elem_count + ((1/3) * list->sz);
-    new_elems = (void**)malloc(new_cap * sizeof(void*));
-    if(new_elems == NULL) { return -1; }
-    
-    for(i = 0, j = 0; i < list->sz; i++) {
-        if(list->elems[i] != NULL) {
-            new_elems[j] = list->elems[i];
-            j++;
-        }
-    }
-    
-    free(list->elems);
-    list->elems = new_elems;
-    list->sz = elem_count;
-    list->cap = new_cap;
-    return 0;
-}
-
-int print_lst(lst* list, char* (*print_fn)(void*)) {
-    int i;
-    
-    if(list == NULL) { printf("%p\n", list); return -1; }
-    
-    printf("[");
-    for(i = 0; i < list->sz; i++) {
-        printf("%s", print_fn(list->elems[i]));
-        
-        if(i < list->sz - 1) {
-            printf(", ");
-        }
-    }
-    printf("]\n");
-    
-    return 0;
-}
-
-/*
- * END
- */
- 
-inline void free_particles(lst* particles) {
-    particle_t* p;
-    int i;
-    
-    for(i = 0; i < particles->sz; i++) {
-        p = (particle_t*)get_lst(particles, i);
-        if(p == NULL) {
-            continue;
-        }
-        
-        free(p->rect);
-        free(p);
-    }
-    
-    free_lst(particles);
-}
- 
 inline int flr(double d) {
     return (int)floor(d);
 }
@@ -294,7 +49,7 @@ void draw_particle(SDL_Surface* screen, particle_t* p, Uint32 color) {
     }
 }
  
-void move_particles(lst* particles, double elapsed) {
+/*void move_particles(lst* particles, double elapsed) {
     int i;
     particle_t* cur_particle;
     
@@ -328,9 +83,9 @@ void move_particles(lst* particles, double elapsed) {
             set_lst(particles, i, (void*)cur_particle);
         }
     }
-}
+}*/
 
-//add a new particle every time the draw function is called
+/*//add a new particle every time the draw function is called
 int draw(SDL_Surface* screen, lst* particles, Uint32 color, int drawing, int mouse_x, int mouse_y, int* open_space) {
     int i;
     particle_t* cur_particle;
@@ -363,7 +118,7 @@ int draw(SDL_Surface* screen, lst* particles, Uint32 color, int drawing, int mou
     }
     
     return 0;
-}
+}*/
 
 //inspired by: http://vimeo.com/36278748
 int main(int argc, char** argv) {
@@ -373,6 +128,7 @@ int main(int argc, char** argv) {
     Uint32 start;
     Uint32 end;
     double elapsed;
+    double last_elapsed;
     
     //event processing related
     SDL_Event e;
@@ -380,9 +136,8 @@ int main(int argc, char** argv) {
     int mouse_x = -1;
     int mouse_y = -1;
     
-    lst* particles;
+    circ_lst_t* particles;
     particle_t* cur_particle;
-    int open_space = -1; //-1 means no open space, otherwise where a particle can be written over a culled one
     int i;
     
     if(argc >= 2) {
@@ -393,7 +148,7 @@ int main(int argc, char** argv) {
     }
     
     //PUT IN FIRST PARTICLES
-    particles = new_lst(LIST_START_SIZE);
+    particles = new_circ_lst();
     if(particles == NULL) {
         fprintf(stderr, "error: `particles array could be initialized'\n");
         return 1;
@@ -417,11 +172,11 @@ int main(int argc, char** argv) {
             }
         }
         
-        //DRAW PARTICLES
+        /*//DRAW PARTICLES
         if(draw(screen, particles, color, drawing, mouse_x, mouse_y, &open_space) < 0) {
             fprintf(stderr, "error in draw()\n");
             return 1;
-        }
+        }*/
         
         if(SDL_MUSTLOCK(screen)) {
             SDL_UnlockSurface(screen);
@@ -434,7 +189,7 @@ int main(int argc, char** argv) {
         while(SDL_PollEvent(&e)) {
             if(e.type == SDL_QUIT) {
                 SDL_FreeSurface(screen);
-                free_particles(particles);
+                clear_circ_list(particles);
                 return 0;
             }
             else if(e.type == SDL_MOUSEMOTION) {
@@ -463,6 +218,6 @@ int main(int argc, char** argv) {
         end = SDL_GetTicks();
         elapsed = (end - start) / 1000.0;
         
-        move_particles(particles, elapsed);
+        //move_particles(particles, elapsed);
     }
 }

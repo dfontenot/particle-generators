@@ -5,7 +5,7 @@
 #define SCR_H 500
 #define SCR_BPP 32
 #define LIST_START_SIZE 30
-#define PARTICLE_START_SIZE 50
+#define PARTICLE_START_SIZE 100
 #define SIZE_DECREASE 0.99
 #define PARTICLE_SIZE_THRESHOLD 2
 #define MAX_NEG_X -5
@@ -272,6 +272,8 @@ inline double rand_range(int low, int high) {
  
 void draw_pixel(SDL_Surface* surf, Uint32 color, int x, int y) {
     //source from: http://www.libsdl.org/intro.en/usingvideo.html
+    if(x > surf->clip_rect.w || y > surf->clip_rect.h) { return; }
+    
     Uint32* b;
     b = (Uint32*)surf->pixels + y * surf->pitch / 4 + x;
     *b = color;
