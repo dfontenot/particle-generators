@@ -27,20 +27,21 @@
 //Author: David Fontenot
 //Date: Sept, 2012
 
-
 #ifndef PARTICLE_T
 #define PARTICLE_T
 
-//location and dimensions are apparent, converted to SDL_Rect for drawing
+//location and dimensions are apparent, SDL_Rect coords and stored for drawing
+//speeds are in pixels per second, all have zero acceleration
 struct particle_t {
-    double x;
-    double y;
-    double w;
-    double h;
+    double x_apparent;
+    double y_apparent;
     double x_speed;
     double y_speed;
+    double size;
 };
 
 typedef struct particle_t particle_t;
+
+particle_t* new_particle(double x_apparent, double y_apparent, double x_speed, double y_speed, double size);
 
 #endif

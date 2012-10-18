@@ -8,14 +8,23 @@
 #define SCR_W 500
 #define SCR_H 500
 #define SCR_BPP 32
+
+//how big the radius is of each starting particle
 #define PARTICLE_START_SIZE 100
-#define SIZE_DECREASE 0.99
-#define DEFAULT_EMIT_RATE 1
+
+//how many pixels a second the particle decreases at
+#define SIZE_DECREASE 30
+
+//how big the width of a particle can before it gets culled
 #define PARTICLE_SIZE_THRESHOLD 2
-#define MAX_NEG_X -5
-#define MAX_X 5
-#define MAX_NEG_Y -5
-#define MAX_Y 5
+
+//how many ticks elapse before a new particle is made
+#define DEFAULT_EMIT_RATE 5
+
+#define MAX_NEG_X -50 //maximum negative speed in the x direction
+#define MAX_X 50
+#define MAX_NEG_Y -50
+#define MAX_Y 50
 
 inline int flr(double d) {
     return (int)floor(d);
@@ -51,101 +60,30 @@ int draw_particle(SDL_Surface* screen, particle_t* p, Uint32 color) {
     
     return 0;
 }
- 
-/*void move_particles(lst* particles, double elapsed) {
-    int i;
-    particle_t* cur_particle;
-    
-    for(i = 0; i < particles->sz; i++) {
-        cur_particle = (particle_t*)get_lst(particles, i);
-        if(cur_particle == NULL) {
-            continue; //null particles represent culled particles
-        }
-        
-        //cull particle if it gets too small
-        if(cur_particle->size * SIZE_DECREASE <= PARTICLE_SIZE_THRESHOLD) {
-            set_lst(particles, i, NULL);
-            continue;
-        }
-        
-        cur_particle->x_apparent += cur_particle->x_speed;
-        cur_particle->y_apparent += cur_particle->y_speed;
-        cur_particle->size *= SIZE_DECREASE;
-        
-        cur_particle->rect->x = flr(cur_particle->x_apparent);
-        cur_particle->rect->y = flr(cur_particle->y_apparent);
-        cur_particle->rect->w = flr(cur_particle->size);
-        cur_particle->rect->h = flr(cur_particle->size);
-        
-        //see if the particle left the screen
-        if(cur_particle->rect->x + cur_particle->rect->w >= SCR_W || cur_particle->rect->x <= 0 || 
-        cur_particle->rect->y + cur_particle->rect->h >= SCR_H || cur_particle->rect->y <= 0) {
-            set_lst(particles, i, NULL);
-        }
-        else {
-            set_lst(particles, i, (void*)cur_particle);
-        }
-    }
-}*/
-
-/*//add a new particle every time the draw function is called
-int draw(SDL_Surface* screen, lst* particles, Uint32 color, int drawing, int mouse_x, int mouse_y, int* open_space) {
-    int i;
-    particle_t* cur_particle;
-    
-    if(drawing == 0 && particles->sz == 0) { return 0; }
-    
-    if(drawing == 1) {
-        cur_particle = new_particle(mouse_x, mouse_y, rand_range(MAX_NEG_X, MAX_X), rand_range(MAX_NEG_Y, MAX_Y), PARTICLE_START_SIZE);
-        if(cur_particle == NULL) {
-            return -1;
-        }
-    }
-    
-    if(*open_space != -1) {
-        set_lst(particles, *open_space, (void*)cur_particle);
-        *open_space = -1; //reset
-    }
-    else {
-        push_lst(particles, (void*)cur_particle);
-    }
-    
-    for(i = 0; i < particles->sz; i++) {
-        cur_particle = (particle_t*)get_lst(particles, i);
-        if(cur_particle != NULL) {
-            draw_particle(screen, cur_particle, color);
-        }
-        else {
-            *open_space = i;
-        }
-    }
-    
-    return 0;
-}*/
 
 //returns the next node
 node_t* update_particle(circ_lst_t* lst, node_t* cur_particle, Uint32 end, Uint32 start) {
     node_t* next = cur_particle->next;
-    double (end - start) / 1000.0;
+    double elapsed = (end - start) / 1000.0;
     
     //cull particle if it gets too small
-    if(cur_particle->size * SIZE_DECREASE <= PARTICLE_SIZE_THRESHOLD) {
+    if(cur_particle->p.size <= PARTICLE_SIZE_THRESHOLD) {
         del_circ_list(lst, cur_particle);
         return next;
     }
     
-    cur_particle->x_apparent += cur_particle->x_speed;
-    cur_particle->y_apparent += cur_particle->y_speed;
-    cur_particle->size *= SIZE_DECREASE;
+    cur_particle->p.x_apparent += elapsed * cur_particle->p.x_speed;
+    cur_particle->p.y_apparent += elapsed * cur_particle->p.y_speed;
+    cur_particle->p.size -= elapsed * SIZE_DECREASE;
     
-    cur_particle->rect->x = flr(cur_particle->x_apparent);
-    cur_particle->rect->y = flr(cur_particle->y_apparent);
-    cur_particle->rect->w = flr(cur_particle->size);
-    cur_particle->rect->h = flr(cur_particle->size);
+    cur_particle->p.rect->x = flr(cur_particle->p.x_apparent);
+    cur_particle->p.rect->y = flr(cur_particle->p.y_apparent);
+    cur_particle->p.rect->w = flr(cur_particle->p.size);
+    cur_particle->p.rect->h = flr(cur_particle->p.size);
     
     //see if the particle left the screen
-    if(cur_particle->rect->x + cur_particle->rect->w >= SCR_W || cur_particle->rect->x <= 0 || 
-    cur_particle->rect->y + cur_particle->rect->h >= SCR_H || cur_particle->rect->y <= 0) {
+    if(cur_particle->p.rect->x + cur_particle->p.rect->w >= SCR_W || cur_particle->p.rect->x <= 0 || 
+    cur_particle->p.rect->y + cur_particle->p.rect->h >= SCR_H || cur_particle->p.rect->y <= 0) {
         del_circ_list(lst, cur_particle);
         return next;
     }
@@ -176,7 +114,7 @@ int main(int argc, char** argv) {
 
     particles = new_circ_lst();
     if(particles == NULL) {
-        fprintf(stderr, "error: `particles array could be initialized'\n");
+        fprintf(stderr, "error: `particles list could be initialized'\n");
         return 1;
     }
     
@@ -220,14 +158,14 @@ int main(int argc, char** argv) {
         if(cur_particle != NULL) {
             //draw first particle
             
-            draw_particle(screen, cur_particle->p, p_color);
+            draw_particle(screen, &cur_particle->p, p_color);
             cur_particle = cur_particle->next;
             
             cur_particle = update_particle(particles, cur_particle, SDL_GetTicks(), start);
 
             //draw the rest
             while(cur_particle != NULL && cur_particle != particles->head) {
-                draw_particle(screen, cur_particle->p, p_color);
+                draw_particle(screen, &cur_particle->p, p_color);
                 
                 cur_particle = update_particle(particles, cur_particle, SDL_GetTicks(), start);
             }
