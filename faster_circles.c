@@ -45,20 +45,23 @@ int draw_pixel(SDL_Surface* surf, Uint32 color, int x, int y) {
 }
 
 //drawing a cirlce like: x^2 + y^2 = rect_height / 2
-int draw_particle(SDL_Surface* screen, particle_t* p, Uint32 color) {
+void draw_particle(SDL_Surface* screen, particle_t* p, Uint32 color) {
     //x and y represnt translated positions for a surface with (0, 0) in the middle
     //they are translated back when given to draw_pixel()
     int x, y;
     
-    for(x = -1 * flr(p->rect->w / 2); x < flr(p->rect->w / 2); x++) {
-        for(y = flr(p->rect->h / 2); y > -1 * flr(p->rect->h / 2); y--) {
-            if((x * x) + (y * y) <= flr(p->rect->h / 2)) {
-                draw_pixel(screen, color, x + flr(p->rect->w / 2) + p->rect->x, y + flr(p->rect->h / 2) + p->rect->y);
+    //store width of rectangle that contains the circle
+    int size = flr(p->size / 2);
+    int x_flr = flr(p->x_apparent);
+    int y_flr = flr(p->y_apparent);
+    
+    for(x = -size; x < size; x++) {
+        for(y = size; y > -1 * size; y--) {
+            if((x * x) + (y * y) <= size) {
+                draw_pixel(screen, color, x + size + x_flr, y + size + y_flr);
             }
         }
     }
-    
-    return 0;
 }
 
 //returns the next node
@@ -75,15 +78,12 @@ node_t* update_particle(circ_lst_t* lst, node_t* cur_particle, Uint32 end, Uint3
     cur_particle->p.x_apparent += elapsed * cur_particle->p.x_speed;
     cur_particle->p.y_apparent += elapsed * cur_particle->p.y_speed;
     cur_particle->p.size -= elapsed * SIZE_DECREASE;
-    
-    cur_particle->p.rect->x = flr(cur_particle->p.x_apparent);
-    cur_particle->p.rect->y = flr(cur_particle->p.y_apparent);
-    cur_particle->p.rect->w = flr(cur_particle->p.size);
-    cur_particle->p.rect->h = flr(cur_particle->p.size);
-    
+
     //see if the particle left the screen
-    if(cur_particle->p.rect->x + cur_particle->p.rect->w >= SCR_W || cur_particle->p.rect->x <= 0 || 
-    cur_particle->p.rect->y + cur_particle->p.rect->h >= SCR_H || cur_particle->p.rect->y <= 0) {
+    if(flr(cur_particle->p.x_apparent) + flr(cur_particle->p.size) >= SCR_W 
+        || flr(cur_particle->p.x_apparent) <= 0 || 
+        flr(cur_particle->p.y_apparent) + flr(cur_particle->p.size) >= SCR_H || 
+        flr(cur_particle->p.y_apparent) <= 0) {
         del_circ_list(lst, cur_particle);
         return next;
     }
