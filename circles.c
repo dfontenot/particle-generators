@@ -10,7 +10,7 @@
 #define SCR_BPP 32
 #define LIST_START_SIZE 30
 
-//how big the width is of each starting particle
+//how big the radius is of each starting particle
 #define PARTICLE_START_SIZE 100
 
 //how many pixels a second the particle decreases at
@@ -33,8 +33,7 @@ inline void free_particles(lst* particles) {
         if(p == NULL) {
             continue;
         }
-        
-        free(p->rect);
+
         free(p);
     }
     
@@ -65,13 +64,25 @@ void draw_particle(SDL_Surface* screen, particle_t* p, Uint32 color) {
     //they are translated back when given to draw_pixel()
     int x, y;
     
-    for(x = -1 * flr(p->rect->w / 2); x < flr(p->rect->w / 2); x++) {
+    //store width of rectangle that contains the circle
+    int size = flr(p->size / 2);
+    int x_flr = flr(p->x_apparent);
+    int y_flr = flr(p->y_apparent);
+    
+    for(x = -size; x < size; x++) {
+        for(y = size; y > -1 * size; y--) {
+            if((x * x) + (y * y) <= size) {
+                draw_pixel(screen, color, x + size + x_flr, y + size + y_flr);
+            }
+        }
+    }
+    /*for(x = -1 * flr(p->rect->w / 2); x < flr(p->rect->w / 2); x++) {
         for(y = flr(p->rect->h / 2); y > -1 * flr(p->rect->h / 2); y--) {
             if((x * x) + (y * y) <= flr(p->rect->h / 2)) {
                 draw_pixel(screen, color, x + flr(p->rect->w / 2) + p->rect->x, y + flr(p->rect->h / 2) + p->rect->y);
             }
         }
-    }
+    }*/
 }
  
 void move_particles(lst* particles, double elapsed) {
@@ -95,14 +106,17 @@ void move_particles(lst* particles, double elapsed) {
         cur_particle->y_apparent += elapsed * cur_particle->y_speed;
         cur_particle->size -= elapsed * SIZE_DECREASE;
         
-        cur_particle->rect->x = flr(cur_particle->x_apparent);
-        cur_particle->rect->y = flr(cur_particle->y_apparent);
-        cur_particle->rect->w = flr(cur_particle->size);
-        cur_particle->rect->h = flr(cur_particle->size);
-        
         //see if the particle left the screen
-        if(cur_particle->rect->x + cur_particle->rect->w >= SCR_W || cur_particle->rect->x <= 0 || 
-        cur_particle->rect->y + cur_particle->rect->h >= SCR_H || cur_particle->rect->y <= 0) {
+        /*if(cur_particle->rect->x + cur_particle->rect->w >= SCR_W 
+        || cur_particle->rect->x <= 0 || 
+        cur_particle->rect->y + cur_particle->rect->h >= SCR_H || 
+        cur_particle->rect->y <= 0) {
+            set_lst(particles, i, NULL);
+        }*/
+        if(flr(cur_particle->x_apparent) + flr(cur_particle->size) >= SCR_W 
+        || flr(cur_particle->x_apparent) <= 0 || 
+        flr(cur_particle->y_apparent) + flr(cur_particle->size) >= SCR_H || 
+        flr(cur_particle->y_apparent) <= 0) {
             set_lst(particles, i, NULL);
         }
         else {
@@ -116,29 +130,34 @@ int draw(SDL_Surface* screen, lst* particles, Uint32 color, int drawing, int mou
     int i;
     particle_t* cur_particle;
     
+    //not adding any new particles and none to draw, return
     if(drawing == 0 && particles->sz == 0) { return 0; }
     
     if(drawing == 1) {
+        //make a new particle
         cur_particle = new_particle(mouse_x, mouse_y, rand_range(MAX_NEG_X, MAX_X), rand_range(MAX_NEG_Y, MAX_Y), PARTICLE_START_SIZE);
         if(cur_particle == NULL) {
             return -1;
         }
+        
+        //see where the particle can go
+        if(*open_space != -1) {
+            set_lst(particles, *open_space, (void*)cur_particle);
+            *open_space = -1; //reset
+        }
+        else {
+            push_lst(particles, (void*)cur_particle);
+        }
     }
     
-    if(*open_space != -1) {
-        set_lst(particles, *open_space, (void*)cur_particle);
-        *open_space = -1; //reset
-    }
-    else {
-        push_lst(particles, (void*)cur_particle);
-    }
-    
+    //loop over the particles
     for(i = 0; i < particles->sz; i++) {
         cur_particle = (particle_t*)get_lst(particles, i);
         if(cur_particle != NULL) {
             draw_particle(screen, cur_particle, color);
         }
         else {
+            //open space will be the last open space to put a new particle
             *open_space = i;
         }
     }
