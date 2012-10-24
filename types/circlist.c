@@ -27,6 +27,7 @@
 //Author: David Fontenot
 //Date: Sept, 2012
 #include <stdlib.h>
+#include <string.h> //for memcpy and memset
 
 #include "circlist.h"
 #include "particle.h"
@@ -42,13 +43,14 @@ circ_lst_t* new_circ_lst() {
 }
 
 int add_circ_lst(circ_lst_t* lst, particle_t* p) {
-    if(lst->head & lst == NULL) {
+    if(lst == NULL) { return -1; }
+    
+    if(lst->head == NULL) {
         //first added particle
         
         lst->head = malloc(sizeof(node_t));
         lst->head->next = lst->head;
         lst->head->prev = lst->head;
-        memcpy(&lst->head->p, p, sizeof(particle_t));
     }
     else {
         if(lst->empties != NULL) {
@@ -60,9 +62,6 @@ int add_circ_lst(circ_lst_t* lst, particle_t* p) {
             lst->empties->prev = lst->head->prev;
             lst->head->prev = lst->empties;
             lst->empties = old_next;
-            
-            //put the data into this new node
-            memcpy(&lst->head->prev->p, p, sizeof(particle_t));
         }
         else {
             //malloc a new node
@@ -75,11 +74,15 @@ int add_circ_lst(circ_lst_t* lst, particle_t* p) {
         }
     }
     
+    //store the new data in it
+    memcpy(&lst->head->p, p, sizeof(particle_t));
+    
     return 0;
 }
 
 int del_circ_list(circ_lst_t* lst, node_t* to_rm) {
-    if(to_rm & lst == NULL) { return -1; }
+    if(to_rm == NULL || lst == NULL) { return -1; }
+    
     //pave over this node in the list of active particles
     to_rm->prev->next = to_rm->next;
     to_rm->next->prev = to_rm->prev;
@@ -88,16 +91,25 @@ int del_circ_list(circ_lst_t* lst, node_t* to_rm) {
     memset(&to_rm->p, 0, sizeof(particle_t));
     
     //put this node at the end of the empties list
-    node_t* old_last = lst->empties->prev;
-    to_rm->prev = old_last;
-    to_rm->next = lst->empties;
-    old_last->next = to_rm;
+    
+    //check if the empties list has been initialized yet
+    if(lst->empties == NULL) {
+        lst->empties = to_rm;
+        lst->empties->next = lst->empties;
+        lst->empties->prev = lst->empties;
+    }
+    else {
+        node_t* old_last = lst->empties->prev;
+        to_rm->prev = old_last;
+        to_rm->next = lst->empties;
+        old_last->next = to_rm;
+    }
     
     return 0;
 }
 
 int clear_circ_list(circ_lst_t* lst) {
-    if(lst->head & lst == NULL) { return -1; }
+    if(lst == NULL || lst->head == NULL) { return -1; }
 
     node_t* cur_node = lst->head;
     while(cur_node->next != NULL) {
@@ -105,11 +117,14 @@ int clear_circ_list(circ_lst_t* lst) {
         free(cur_node->prev);
     }
     
+    if(lst->empties == NULL) { return 0; } //no empty nodes to delete
     cur_node = lst->empties;
     while(cur_node->next != NULL) {
         cur_node = cur_node->next;
         free(cur_node->prev);
     }
+    
+    free(lst);
     
     return 0;
 }

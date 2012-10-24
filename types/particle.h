@@ -30,7 +30,7 @@
 #ifndef PARTICLE_T
 #define PARTICLE_T
 
-//location and dimensions are apparent, SDL_Rect coords and stored for drawing
+//location and dimensions are apparent, values are floored when drawn
 //speeds are in pixels per second, all have zero acceleration
 struct particle_t {
     double x_apparent;

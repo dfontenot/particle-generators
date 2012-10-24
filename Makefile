@@ -1,32 +1,27 @@
 CC=cc
-CFLAGS=-g3 `sdl-config --cflags`
+CFLAGS=`sdl-config --cflags`
+DEBUG=-g3
 LIBS=-lm `sdl-config --libs`
 
-all:
-	basic
-	circles
-	faster_circles
+all: basic circles faster_circles
 
 lst.o: types/lst.h
-	$(CC) -c types/lst.c
+	$(CC) -c types/lst.c $(DEBUG)
 
 particle.o: types/particle.h
-	$(CC) -c types/particle.c
+	$(CC) -c types/particle.c $(DEBUG)
 
 circlist.o: types/circlist.h
-	$(CC) -c types/circlist.c $(CFLAGS)
+	$(CC) -c types/circlist.c $(CFLAGS) $(DEBUG)
        
 basic: basic.c lst.o particle.o
-	$(CC) $(CFLAGS) lst.o particle.o basic.c -o basic $(LIBS)
-	rm lst.o particle.o
+	$(CC) $(CFLAGS) lst.o particle.o basic.c -o basic $(LIBS) $(DEBUG)
 
 circles: circles.c lst.o particle.o
-	$(CC) $(CFLAGS) lst.o particle.o circles.c -o circles $(LIBS)
-	rm lst.o particle.o
+	$(CC) $(CFLAGS) lst.o particle.o circles.c -o circles $(LIBS) $(DEBUG)
 
 faster_circles: circlist.o particle.o
-	$(CC) $(CFLAGS) circlist.o particle.o faster_circles.c -o faster_circles $(LIBS)
-	rm circlist.o particle.o
+	$(CC) $(CFLAGS) circlist.o particle.o faster_circles.c -o faster_circles $(LIBS) $(DEBUG)
 
 clean:
-	rm -f basic circles faster_circles
+	rm -f basic circles faster_circles *.o

@@ -76,13 +76,6 @@ void draw_particle(SDL_Surface* screen, particle_t* p, Uint32 color) {
             }
         }
     }
-    /*for(x = -1 * flr(p->rect->w / 2); x < flr(p->rect->w / 2); x++) {
-        for(y = flr(p->rect->h / 2); y > -1 * flr(p->rect->h / 2); y--) {
-            if((x * x) + (y * y) <= flr(p->rect->h / 2)) {
-                draw_pixel(screen, color, x + flr(p->rect->w / 2) + p->rect->x, y + flr(p->rect->h / 2) + p->rect->y);
-            }
-        }
-    }*/
 }
  
 void move_particles(lst* particles, double elapsed) {
@@ -107,12 +100,6 @@ void move_particles(lst* particles, double elapsed) {
         cur_particle->size -= elapsed * SIZE_DECREASE;
         
         //see if the particle left the screen
-        /*if(cur_particle->rect->x + cur_particle->rect->w >= SCR_W 
-        || cur_particle->rect->x <= 0 || 
-        cur_particle->rect->y + cur_particle->rect->h >= SCR_H || 
-        cur_particle->rect->y <= 0) {
-            set_lst(particles, i, NULL);
-        }*/
         if(flr(cur_particle->x_apparent) + flr(cur_particle->size) >= SCR_W 
         || flr(cur_particle->x_apparent) <= 0 || 
         flr(cur_particle->y_apparent) + flr(cur_particle->size) >= SCR_H || 
@@ -238,8 +225,9 @@ int main(int argc, char** argv) {
                 return 0;
             }
             else if(e.type == SDL_MOUSEMOTION) {
-                mouse_x = e.motion.x;
-                mouse_y = e.motion.y;
+                /*mouse_x = e.motion.x;
+                mouse_y = e.motion.y;*/
+                SDL_GetMouseState(&mouse_x, &mouse_y);
             }
             else if(e.type == SDL_MOUSEBUTTONDOWN) {
                 if(e.button.button == SDL_BUTTON_LEFT) {
