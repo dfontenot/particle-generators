@@ -9,4 +9,4 @@ Some particle generators I made inspired by http://vimeo.com/36278748
 Bugs
 
 * Both circles.c and faster_circles.c: newly created particles don't align with the cursor
-* faster_circles.c has some list processing errors, only one particle is created, this will soon be fixed after midterm week
+* faster_circles.c has some (less than before!) list processing errors. There is a hidden double free error I am looking for.
