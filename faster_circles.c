@@ -64,30 +64,37 @@ void draw_particle(SDL_Surface* screen, particle_t* p, Uint32 color) {
     }
 }
 
+int particle_remove_predicate(node_t* cur_particle) {
+    if((flr(cur_particle->p.x_apparent) + flr(cur_particle->p.size) >= SCR_W 
+        || flr(cur_particle->p.x_apparent) <= 0 || 
+        flr(cur_particle->p.y_apparent) + flr(cur_particle->p.size) >= SCR_H || 
+        flr(cur_particle->p.y_apparent) <= 0) || cur_particle->p.size <= PARTICLE_SIZE_THRESHOLD)
+        return 1;
+    else
+        return 0;
+}
+
 //returns the next node
 node_t* update_particle(circ_lst_t* lst, node_t* cur_particle, Uint32 end, Uint32 start) {
-    node_t* next = cur_particle->next;
+    node_t* next = cur_particle->next; //save the location of the next particle to return it
     double elapsed = (end - start) / 1000.0;
-    
-    //cull particle if it gets too small
-    if(cur_particle->p.size <= PARTICLE_SIZE_THRESHOLD) {
-        del_circ_list(lst, cur_particle);
-        return next;
+
+    //should this particle be removed?
+    if(particle_remove_predicate(cur_particle)) {
+        if(del_circ_list(lst, cur_particle)) {
+            fprintf(stderr, "error returned from del_circ_list() in update_particle(). Exiting.\n");
+            SDL_Quit();
+        }
+        else {
+            return next;
+        }
     }
-    
+
+    //update particle
     cur_particle->p.x_apparent += elapsed * cur_particle->p.x_speed;
     cur_particle->p.y_apparent += elapsed * cur_particle->p.y_speed;
     cur_particle->p.size -= elapsed * SIZE_DECREASE;
 
-    //see if the particle left the screen
-    if(flr(cur_particle->p.x_apparent) + flr(cur_particle->p.size) >= SCR_W 
-        || flr(cur_particle->p.x_apparent) <= 0 || 
-        flr(cur_particle->p.y_apparent) + flr(cur_particle->p.size) >= SCR_H || 
-        flr(cur_particle->p.y_apparent) <= 0) {
-        del_circ_list(lst, cur_particle);
-        return next;
-    }
-    
     return next;
 }
 
@@ -105,6 +112,7 @@ int main(int argc, char** argv) {
     
     circ_lst_t* particles;
     
+    //provide seed or just use the current time
     if(argc >= 2) {
         srand(time(atoi(argv[1])));
     }
@@ -149,6 +157,9 @@ int main(int argc, char** argv) {
                 fprintf(stderr, "error in creating new particle\n");
                 return 1;
             }
+            else {
+                printf("drawing particle\n");
+            }
         }
         
         //DRAW THE PARTICLES
@@ -159,9 +170,8 @@ int main(int argc, char** argv) {
             //draw first particle
             
             draw_particle(screen, &cur_particle->p, p_color);
-            cur_particle = cur_particle->next;
             
-            cur_particle = update_particle(particles, cur_particle, SDL_GetTicks(), start);
+            cur_particle = update_particle(particles, cur_particle, SDL_GetTicks(), start); //updates cur_particle
 
             //draw the rest
             while(cur_particle != NULL && cur_particle != particles->head) {
